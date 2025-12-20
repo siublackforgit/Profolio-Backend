@@ -1,2 +1,27 @@
-package com.rickyyeung.profolio.service;public class EmailService {
+package com.rickyyeung.profolio.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+
+@Service
+public class EmailService {
+
+    @Autowired
+    private  JavaMailSender mailSender;
+
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
+
+    public void send(String to, String subject, String body) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(to);
+        msg.setSubject(subject);
+        msg.setText(body);
+        mailSender.send(msg);
+    }
 }
