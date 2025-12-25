@@ -11,7 +11,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Data
 
-public abstract class base {
+public abstract class Base {
 
     @Column(name = "createdDate", nullable = false)
     private LocalDateTime  createdDate;

@@ -3,12 +3,10 @@ package com.rickyyeung.profolio.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
 @Entity
 @Table(name = "user")
-public class User extends base{
+public class User extends Base {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
@@ -24,5 +22,11 @@ public class User extends base{
 
     @Column(name = "displayName", nullable = false)
     private String displayName;
+
+    @Column(name = "avatarUrl", nullable = true)
+    private String avatarUrl;
+
+    @Column(name = "isEmailVerified", nullable = false)
+    private Boolean isEmailVerified;
 
 }
