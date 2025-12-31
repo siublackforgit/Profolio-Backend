@@ -1,8 +1,10 @@
 package com.rickyyeung.profolio.service;
 
+import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.config.AppConfiguration;
 import com.rickyyeung.profolio.mapper.UserMapper;
 import com.rickyyeung.profolio.model.User;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.connection.RedisServer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -89,6 +91,32 @@ public class AuthService {
             User user = userOpt.get();
             user.setIsEmailVerified(true);
             userMapper.updateUser(user);
+        }else{
+            throw new IllegalArgumentException("User is not found");
+        }
+    }
+
+    public UserDto LoginEmail (String email, String password) {
+        if(email == null || email.isBlank()){
+            throw new IllegalArgumentException("email is Null or Empty");
+        }
+
+        if(password == null || password.isBlank()){
+            throw new IllegalArgumentException("password is Null or Empty");
+        }
+
+        Optional<User> userOpt = userMapper.findByEmail(email);
+        if(userOpt.isPresent()){
+            User user = userOpt.get();
+            String passwordHashed = bCryptPasswordEncoder.encode(password);
+            if(passwordHashed.equals(user.getPasswordHash())){
+                UserDto userDto = new UserDto();
+                BeanUtils.copyProperties(user,userDto);
+                return userDto;
+            }else{
+                throw new IllegalArgumentException("Password is not matched");
+            }
+
         }else{
             throw new IllegalArgumentException("User is not found");
         }
