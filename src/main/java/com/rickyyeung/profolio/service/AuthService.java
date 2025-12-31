@@ -1,5 +1,6 @@
 package com.rickyyeung.profolio.service;
 
+import com.rickyyeung.profolio.Dto.LoginRespondDto;
 import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.config.AppConfiguration;
 import com.rickyyeung.profolio.mapper.UserMapper;
@@ -96,7 +97,7 @@ public class AuthService {
         }
     }
 
-    public UserDto LoginEmail (String email, String password) {
+    public LoginRespondDto LoginEmail (String email, String password) {
         if(email == null || email.isBlank()){
             throw new IllegalArgumentException("email is Null or Empty");
         }
@@ -112,7 +113,10 @@ public class AuthService {
             if(passwordHashed.equals(user.getPasswordHash())){
                 UserDto userDto = new UserDto();
                 BeanUtils.copyProperties(user,userDto);
-                return userDto;
+
+                String token = "ttt";
+
+                return new LoginRespondDto(userDto,token);
             }else{
                 throw new IllegalArgumentException("Password is not matched");
             }
