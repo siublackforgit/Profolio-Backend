@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -57,9 +59,9 @@ public class AuthController {
     }
 
     @PostMapping("/loginEmail")
-    public ResponseEntity<?> loginEmail(@RequestParam String email, @RequestParam String password){
+    public ResponseEntity<?> loginEmail(@RequestBody Map<String, Object> payload){
         try{
-            LoginRespondDto loginRespondDto = authService.LoginEmail(email,password);
+            LoginRespondDto loginRespondDto = authService.LoginEmail(payload);
             return ResponseEntity.ok(loginRespondDto);
         }catch (IllegalArgumentException e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

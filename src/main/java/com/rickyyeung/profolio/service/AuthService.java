@@ -15,6 +15,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -119,7 +120,12 @@ public class AuthService {
         }
     }
 
-    public LoginRespondDto LoginEmail (String email, String password) {
+    public LoginRespondDto LoginEmail (Map<String, Object> payload) {
+
+        String email = (String) payload.get("email");
+
+        String password = (String) payload.get("password");
+
         if(email == null || email.isBlank()){
             throw new IllegalArgumentException("email is Null or Empty");
         }
@@ -131,13 +137,31 @@ public class AuthService {
         Optional<User> userOpt = userMapper.findByEmail(email);
         if(userOpt.isPresent()){
             User user = userOpt.get();
-            String passwordHashed = bCryptPasswordEncoder.encode(password);
-            if(passwordHashed.equals(user.getPasswordHash())){
+            if(bCryptPasswordEncoder.matches(password, user.getPasswordHash())){
+                //User account is not verified, send another email
+                if(user.getIsEmailVerified() == false){
+                    //Save Token into Redis for checking
+                    String token = UUID.randomUUID().toString();
+                    redisTemplate.opsForValue().set("EMAIL_VERIFY"+token, email , Duration.ofMinutes(15));
+                    String verficationUrl = appConfiguration.getBackendDomain() + "/auth/verify?token=" + token;
+                    try {
+                        userMapper.insertUser(user);
+                        emailService.send(
+                                email,
+                                "[Verification Email] Please verify your email",
+                                "Hi " + user.getDisplayName() + ",\n\n This is a verification Email From Ricky Profolio, \n\n Please verify your email by clicking this link:\n" + verficationUrl
+                        );
+                        throw new IllegalStateException("The Account is unverified, a email has been sent to your email, please verify your account");
+                    } catch (Exception e) {
+                        redisTemplate.delete("EMAIL_VERIFY" + token);
+                        throw new RuntimeException("A verification Email sent failed, rolling back.");
+                    }
+                }
+
+                //User is verified
                 UserDto userDto = new UserDto();
                 BeanUtils.copyProperties(user,userDto);
-
                 String token = jwtUtils.generateToken(user.getUserId());
-
                 return new LoginRespondDto(userDto,token);
             }else{
                 throw new IllegalArgumentException("Password is not matched");
