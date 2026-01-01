@@ -30,4 +30,16 @@ public interface UserMapper {
             "lastUpdatedDate = NOW() " +
             "WHERE userId = #{userId}")
     void updateUser(User user);
+
+
+    @Update("UPDATE user SET " +
+            "isEmailVerified = #{isEmailVerified}, " +
+            "lastUpdatedBy = #{lastUpdatedBy}, " +
+            "lastUpdatedDate = NOW() " +
+            "WHERE userId = #{userId}")
+    void updateEmailVerifiedStatus(
+            @Param("userId") Long userId,
+            @Param("isEmailVerified") Boolean isEmailVerified,
+            @Param("lastUpdatedBy") int lastUpdatedBy
+    );
 }

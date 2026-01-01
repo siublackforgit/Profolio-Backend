@@ -5,6 +5,8 @@ import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.config.AppConfiguration;
 import com.rickyyeung.profolio.mapper.UserMapper;
 import com.rickyyeung.profolio.model.User;
+import com.rickyyeung.profolio.util.JwtUtils;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.connection.RedisServer;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,27 +24,30 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final JwtUtils jwtUtils;
     private final AppConfiguration appConfiguration;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
 
     public AuthService(UserMapper userMapper, BCryptPasswordEncoder bCryptPasswordEncoder, AppConfiguration appConfiguration
-    ,EmailService emailService, StringRedisTemplate redisTemplate
+    ,EmailService emailService, StringRedisTemplate redisTemplate, JwtUtils jwtUtils
     ) {
         this.userMapper = userMapper;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.appConfiguration = appConfiguration;
         this.emailService = emailService;
         this.redisTemplate = redisTemplate;
+        this.jwtUtils = jwtUtils;
     }
 
-    public User registerEmail (String email, String password, String displayName, String avatarUrl ) {
+    @Transactional
+    public User registerEmail (String email, String password, String displayName) {
         if(email == null || email.isBlank()){
             throw new IllegalArgumentException("Email is Null or Empty");
         }
 
         if(password == null || password.isBlank()){
-            throw new IllegalArgumentException("Email is Null or Empty");
+            throw new IllegalArgumentException("Password is Null or Empty");
         }
 
         if(displayName == null || displayName.isBlank()){
@@ -60,6 +65,8 @@ public class AuthService {
         user.setPasswordHash(passwordHashed);
         user.setDisplayName(displayName);
         user.setIsEmailVerified(false);
+        user.setCreatedBy(1);
+        user.setLastUpdatedBy(1);
 
         //Save Token into Redis for checking
         String token = UUID.randomUUID().toString();
@@ -67,15 +74,23 @@ public class AuthService {
 
         String verficationUrl = appConfiguration.getBackendDomain() + "/auth/verify?token=" + token;
 
-        emailService.send(
-                email,
-                "[Verification Email] Please verify your email",
-                "Hi " + displayName + ",\n\n This is a verification Email From Ricky Profolio, \n\n Please verify your email by clicking this link:\n" + verficationUrl
-        );
 
-        return user;
+        try {
+            userMapper.insertUser(user);
+            emailService.send(
+                    email,
+                    "[Verification Email] Please verify your email",
+                    "Hi " + displayName + ",\n\n This is a verification Email From Ricky Profolio, \n\n Please verify your email by clicking this link:\n" + verficationUrl
+            );
+            return user;
+        } catch (Exception e) {
+            redisTemplate.delete("EMAIL_VERIFY" + token);
+            throw new RuntimeException("Email sending failed, rolling back.");
+        }
+
     }
 
+    @Transactional
     public void verifyEmail(String token) {
         if(token == null || token.isBlank()){
             throw new IllegalArgumentException("Token is Null or Empty");
@@ -90,8 +105,15 @@ public class AuthService {
         Optional<User> userOpt = userMapper.findByEmail(email);
         if(userOpt.isPresent()){
             User user = userOpt.get();
-            user.setIsEmailVerified(true);
-            userMapper.updateUser(user);
+            Long userId = user.getUserId();
+            if(userId == null){
+                throw new IllegalArgumentException("User Id cannot be null");
+            }
+            try {
+                userMapper.updateEmailVerifiedStatus(userId, true, 1);
+            } catch (Exception e) {
+                System.out.println("更新失败");
+            }
         }else{
             throw new IllegalArgumentException("User is not found");
         }
@@ -114,7 +136,7 @@ public class AuthService {
                 UserDto userDto = new UserDto();
                 BeanUtils.copyProperties(user,userDto);
 
-                String token = "ttt";
+                String token = jwtUtils.generateToken(user.getUserId());
 
                 return new LoginRespondDto(userDto,token);
             }else{

@@ -1,5 +1,6 @@
 package com.rickyyeung.profolio.controller;
 
+import com.rickyyeung.profolio.Dto.LoginRespondDto;
 import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.service.AuthService;
 import org.slf4j.Logger;
@@ -27,7 +28,7 @@ public class AuthController {
                                                 @RequestParam(required = false) String avatarUrl
     ) {
         try {
-            authService.registerEmail(email, password, displayName, avatarUrl);
+            authService.registerEmail(email, password, displayName);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body("User registered successfully");
         } catch (IllegalArgumentException e) {
@@ -58,8 +59,8 @@ public class AuthController {
     @PostMapping("/loginEmail")
     public ResponseEntity<?> loginEmail(@RequestParam String email, @RequestParam String password){
         try{
-            UserDto userDto = authService.LoginEmail(email,password);
-            return ResponseEntity.ok(userDto);
+            LoginRespondDto loginRespondDto = authService.LoginEmail(email,password);
+            return ResponseEntity.ok(loginRespondDto);
         }catch (IllegalArgumentException e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){

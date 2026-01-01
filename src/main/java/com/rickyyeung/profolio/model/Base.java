@@ -13,19 +13,21 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 public abstract class Base {
 
+    @CreatedDate
     @Column(name = "createdDate", nullable = false)
     private LocalDateTime  createdDate;
 
     @Column(name = "createdBy", nullable = false)
-    private String createdBy;
+    private int createdBy;
 
+    @LastModifiedDate
     @Column(name = "lastUpdatedDate", nullable = false)
     private LocalDateTime  lastUpdatedDate;
 
     @Column(name = "lastUpdatedBy", nullable = false)
-    private String lastUpdatedBy;
+    private int lastUpdatedBy;
 
     @Column(name = "isDeleted", nullable = false)
-    private boolean isDeleted;
+    private boolean isDeleted = false;
 
 }
