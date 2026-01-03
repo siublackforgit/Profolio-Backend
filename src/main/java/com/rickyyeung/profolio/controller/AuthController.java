@@ -6,7 +6,9 @@ import com.rickyyeung.profolio.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -62,7 +64,16 @@ public class AuthController {
     public ResponseEntity<?> loginEmail(@RequestBody Map<String, Object> payload){
         try{
             LoginRespondDto loginRespondDto = authService.LoginEmail(payload);
-            return ResponseEntity.ok(loginRespondDto);
+
+            ResponseCookie cookie = ResponseCookie.from("accessToken", loginRespondDto.getToken())
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(3600)
+                    .sameSite("Strict")
+                    .build();
+
+            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,cookie.toString()).body(loginRespondDto.getUserDto());
         }catch (IllegalArgumentException e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){
