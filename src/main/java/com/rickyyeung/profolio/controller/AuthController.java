@@ -2,6 +2,7 @@ package com.rickyyeung.profolio.controller;
 
 import com.rickyyeung.profolio.Dto.LoginRespondDto;
 import com.rickyyeung.profolio.Dto.UserDto;
+import com.rickyyeung.profolio.model.User;
 import com.rickyyeung.profolio.service.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,7 @@ public class AuthController {
         try{
             LoginRespondDto loginRespondDto = authService.LoginEmail(payload);
 
-            ResponseCookie cookie = ResponseCookie.from("accessToken", loginRespondDto.getToken())
+            ResponseCookie cookie = ResponseCookie.from("jwt-token", loginRespondDto.getToken())
                     .httpOnly(true)
                     .secure(true)
                     .path("/")
@@ -76,6 +77,38 @@ public class AuthController {
             return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,cookie.toString()).body(loginRespondDto.getUserDto());
         }catch (IllegalArgumentException e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
+        }
+    }
+
+    @PostMapping("/getUserFromToken")
+    public ResponseEntity<?> getUserFromToken (@RequestBody Map<String, Object> payload){
+        try{
+
+            String tempToken = (String) payload.get("tempToken");
+            User user = authService.GetUserFromToken(tempToken);
+
+            return ResponseEntity.ok().body(user);
+        }catch (IllegalArgumentException e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
+        }
+    }
+
+    @PostMapping("/logOut")
+    public ResponseEntity<?> logOut() {
+        try{
+            ResponseCookie jwtCookie = ResponseCookie.from("jwt-token")
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(0)
+                    .sameSite("Strict")
+                    .build();
+
+            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,jwtCookie.toString()).body("Succeed LogOut");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }

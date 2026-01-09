@@ -120,6 +120,29 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public User GetUserFromToken (String tempToken) {
+
+        if(tempToken == null || tempToken.isBlank()){
+            throw new IllegalArgumentException("tempToken is Null or Empty");
+        }
+
+        String email = redisTemplate.opsForValue().get(tempToken);
+
+        if(email == null || email.isBlank() ){
+            throw new IllegalArgumentException("email is null or token is expired");
+        }
+
+        Optional<User> userOpt = userMapper.findByEmail(email);
+        if(userOpt.isEmpty()){
+            throw new IllegalStateException("User is null");
+        }
+
+        User user = userOpt.get();
+
+        return user;
+    }
+
     public LoginRespondDto LoginEmail (Map<String, Object> payload) {
 
         String email = (String) payload.get("email");
