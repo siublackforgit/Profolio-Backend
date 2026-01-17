@@ -16,6 +16,9 @@ public interface UserMapper {
     @Select("SELECT * FROM user WHERE email = #{email}")
     Optional<User> findByEmail(String email);
 
+    @Select("SELECT * FROM user WHERE userId = #{userId}")
+    Optional<User> findByUserId(Long userId);
+
     @Select("SELECT * FROM user WHERE google_id = #{googleId}")
     Optional<User> findByGoogleId(String googleId);
 
@@ -42,4 +45,6 @@ public interface UserMapper {
             @Param("isEmailVerified") Boolean isEmailVerified,
             @Param("lastUpdatedBy") int lastUpdatedBy
     );
+
+
 }

@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Configuration
 @EnableWebSecurity
@@ -61,7 +62,7 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
           http.cors(Customizer.withDefaults()).csrf(csrf -> csrf.disable() )
                   .authorizeHttpRequests(auth -> auth
-                          .requestMatchers("/auth/**", "/oauth2/**").permitAll()
+                          .requestMatchers("/auth/**", "/oauth2/**","/auth/refresh").permitAll()
                           .anyRequest().authenticated()
                   )
                   .oauth2Login(oauth2 -> oauth2
@@ -127,9 +128,11 @@ public class SecurityConfiguration {
                 return newUser;
             });
 
-            String token = jwtUtils.generateToken(user.getUserId());
+            String accesstoken = jwtUtils.generateToken(user);
+            String refreshtoken = UUID.randomUUID().toString();
 
-            ResponseCookie cookie = ResponseCookie.from("authToken", token)
+
+            ResponseCookie accessCookie = ResponseCookie.from("accessToken", accesstoken)
                     .httpOnly(true)
                     .secure(true)
                     .path("/")
@@ -137,7 +140,17 @@ public class SecurityConfiguration {
                     .sameSite("Lax")
                     .build();
 
-            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshtoken)
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/auth/refresh")
+                    .maxAge(Duration.ofDays(7))
+                    .sameSite("Lax")
+                    .build();
+
+
+            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
             String tempToken = randomTokenUtils.generateSecureToken();
 

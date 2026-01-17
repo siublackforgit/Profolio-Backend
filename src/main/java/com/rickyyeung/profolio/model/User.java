@@ -29,4 +29,7 @@ public class User extends Base {
     @Column(name = "isEmailVerified", nullable = false)
     private Boolean isEmailVerified;
 
+    @Column(name = "userRole", nullable = false)
+    private int userRole;
+
 }

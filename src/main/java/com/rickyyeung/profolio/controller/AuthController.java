@@ -1,9 +1,11 @@
 package com.rickyyeung.profolio.controller;
 
 import com.rickyyeung.profolio.Dto.LoginRespondDto;
+import com.rickyyeung.profolio.Dto.TokenDtos;
 import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.model.User;
 import com.rickyyeung.profolio.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.Map;
 
 @RestController
@@ -66,15 +69,26 @@ public class AuthController {
         try{
             LoginRespondDto loginRespondDto = authService.LoginEmail(payload);
 
-            ResponseCookie cookie = ResponseCookie.from("jwt-token", loginRespondDto.getToken())
+            ResponseCookie accessTokencookie = ResponseCookie.from("accessToken", loginRespondDto.getAccessToken())
                     .httpOnly(true)
                     .secure(true)
                     .path("/")
-                    .maxAge(3600)
+                    .maxAge(Duration.ofMinutes(15))
                     .sameSite("Strict")
                     .build();
 
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,cookie.toString()).body(loginRespondDto.getUserDto());
+            ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", loginRespondDto.getRefreshToken())
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(Duration.ofDays(7))
+                    .sameSite("Strict")
+                    .build();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, accessTokencookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+                    .body(loginRespondDto.getUserDto());
         }catch (IllegalArgumentException e){
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){
@@ -100,7 +114,7 @@ public class AuthController {
     @PostMapping("/logOut")
     public ResponseEntity<?> logOut() {
         try{
-            ResponseCookie jwtCookie = ResponseCookie.from("jwt-token")
+            ResponseCookie accessTokenCookie = ResponseCookie.from("acessToken")
                     .httpOnly(true)
                     .secure(true)
                     .path("/")
@@ -108,9 +122,53 @@ public class AuthController {
                     .sameSite("Strict")
                     .build();
 
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,jwtCookie.toString()).body("Succeed LogOut");
+            ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken")
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/auth/refresh")
+                    .maxAge(0)
+                    .sameSite("Strict")
+                    .build();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE,accessTokenCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE,refreshTokenCookie.toString())
+                    .body("Succeed LogOut");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshAccessToken(HttpServletRequest request) {
+
+        try {
+            LoginRespondDto loginRespondDto = authService.validateAndRefreshToken(request);
+
+            ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", loginRespondDto.getAccessToken())
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(Duration.ofMinutes(15).toMillis())
+                    .sameSite("Lax")
+                    .build();
+
+            ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", loginRespondDto.getRefreshToken())
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/auth/refresh")
+                    .maxAge(Duration.ofMinutes(15).toMillis())
+                    .sameSite("Lax")
+                    .build();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE,accessTokenCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE,refreshTokenCookie.toString())
+                    .body(loginRespondDto.getUserDto());
+            }catch (RuntimeException e){
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+            }catch (Exception e){
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error, please check server log");
+            }
     }
 }

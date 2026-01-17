@@ -1,23 +1,26 @@
 package com.rickyyeung.profolio.service;
 
 import com.rickyyeung.profolio.Dto.LoginRespondDto;
+import com.rickyyeung.profolio.Dto.TokenDtos;
 import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.config.AppConfiguration;
+import com.rickyyeung.profolio.enums.UserRole;
 import com.rickyyeung.profolio.mapper.UserMapper;
 import com.rickyyeung.profolio.model.User;
 import com.rickyyeung.profolio.util.JwtUtils;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.connection.RedisServer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /** @noinspection ALL*/
 @Service
@@ -68,6 +71,7 @@ public class AuthService {
         user.setIsEmailVerified(false);
         user.setCreatedBy(1);
         user.setLastUpdatedBy(1);
+        user.setUserRole(UserRole.USER.getCode());
 
         //Save Token into Redis for checking
         String token = UUID.randomUUID().toString();
@@ -113,7 +117,7 @@ public class AuthService {
             try {
                 userMapper.updateEmailVerifiedStatus(userId, true, 1);
             } catch (Exception e) {
-                System.out.println("更新失败");
+                System.out.println("Update Failed");
             }
         }else{
             throw new IllegalArgumentException("User is not found");
@@ -184,8 +188,13 @@ public class AuthService {
                 //User is verified
                 UserDto userDto = new UserDto();
                 BeanUtils.copyProperties(user,userDto);
-                String token = jwtUtils.generateToken(user.getUserId());
-                return new LoginRespondDto(userDto,token);
+                String accesstoken = jwtUtils.generateToken(user);
+                String refreshToken = UUID.randomUUID().toString();
+
+                //prefix:userId
+                redisTemplate.opsForValue().set("refreshToken:"+user.getUserId(),refreshToken,Duration.ofDays(2));
+
+                return new LoginRespondDto(userDto,accesstoken,refreshToken);
             }else{
                 throw new IllegalArgumentException("Password is not matched");
             }
@@ -195,6 +204,56 @@ public class AuthService {
         }
     }
 
+    public LoginRespondDto validateAndRefreshToken(HttpServletRequest request){
+        Cookie[] cookies  = request.getCookies();
+        if(cookies == null){
+            throw new RuntimeException("No cookies found");
+        }
 
+        String refreshTokenFromCookie = Arrays.stream(cookies)
+                .filter(c -> "refreshToken".equals(c.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElseThrow( () -> new RuntimeException("Refresh Token is missing") );
+
+        String accessTokenFromCookie = Arrays.stream(cookies)
+                .filter(c -> "accessToken".equals(c.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElseThrow( () -> new RuntimeException("accessToken Token is missing") );
+
+        Long userId = jwtUtils.getUserIdFromToken(accessTokenFromCookie);
+
+        if(userId == null){
+            throw new RuntimeException("userId is null in accessToken");
+        }
+
+        String redisKey = "refreshToken:"+userId;
+        String storedRefreshToken = (String) redisTemplate.opsForValue().get(redisKey);
+
+        if(!redisTemplate.hasKey(redisKey)){
+            throw new RuntimeException("Refresh Token has expired or session invalid");
+        }
+
+        if(storedRefreshToken == null || !storedRefreshToken.equals(refreshTokenFromCookie)){
+            throw new RuntimeException("Cannot Find RefreshToken");
+        }
+
+        Optional<User> user = userMapper.findByUserId(userId);
+
+        if(user.isEmpty()){
+            throw new RuntimeException("user is null");
+        }
+
+
+        UserDto userDto = new UserDto();
+        BeanUtils.copyProperties(user.get(),userDto);
+
+
+        String accessToken = jwtUtils.generateToken(user.get());
+        String refreshToken = UUID.randomUUID().toString();
+
+        return new LoginRespondDto(userDto,accessToken,refreshToken);
+    }
 
 }

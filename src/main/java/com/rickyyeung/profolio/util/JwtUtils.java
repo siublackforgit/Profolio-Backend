@@ -1,5 +1,7 @@
 package com.rickyyeung.profolio.util;
 
+import com.rickyyeung.profolio.enums.UserRole;
+import com.rickyyeung.profolio.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 
 @Component
@@ -27,13 +30,16 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(Long userId) {
+    public String generateToken(User user) {
         long now = System.currentTimeMillis();
+
+
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(String.valueOf(user.getUserId()))
                 .issuer(issuer)
+                .claim("role",UserRole.fromCode(user.getUserRole()))
                 .issuedAt(new Date(now))
-                .expiration(new Date(now + ttlSeconds * 1000))
+                .expiration(new Date(now + Duration.ofMinutes(15).toMillis()))
                 .signWith(getSigningKey())
                 .compact();
     }

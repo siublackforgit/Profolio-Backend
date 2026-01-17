@@ -11,5 +11,4 @@ public class UserDto {
     private String googleId;
     private String displayName;
     private String avatarUrl;
-
 }
