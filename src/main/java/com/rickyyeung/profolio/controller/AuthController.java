@@ -40,9 +40,11 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body("User registered successfully");
         } catch (IllegalArgumentException e) {
+            logger.debug("Invalid input: "+ e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Invalid input: " + e.getMessage());
         } catch (IllegalStateException e) {
+            logger.debug("Registration failed:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Registration failed: " + e.getMessage());
         } catch (Exception e) {
@@ -58,8 +60,10 @@ public class AuthController {
             authService.verifyEmail(token);
             return ResponseEntity.ok("Email Verified Successfully");
         }catch (IllegalArgumentException e){
+            logger.debug("verifyEmail failed, error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){
+            logger.debug("Server Error, error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }
     }
@@ -91,8 +95,10 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                     .body(loginRespondDto.getUserDto());
         }catch (IllegalArgumentException e){
+            logger.debug("loginEmail failed, Bad request error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){
+            logger.debug("loginEmail failed, internel error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }
     }
@@ -106,8 +112,10 @@ public class AuthController {
 
             return ResponseEntity.ok().body(user);
         }catch (IllegalArgumentException e){
+            logger.debug("bad request, error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }catch (Exception e){
+            logger.debug("bad request, error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }
     }
@@ -136,6 +144,7 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE,refreshTokenCookie.toString())
                     .body("Succeed LogOut");
         }catch (Exception e){
+            logger.debug("bad request, error message:"+ e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Server Error");
         }
     }
