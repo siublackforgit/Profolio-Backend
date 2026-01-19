@@ -8,8 +8,8 @@ import java.util.Optional;
 @Mapper
 public interface UserMapper {
 
-    @Insert("INSERT INTO user (email, passwordHash, googleId, displayName, avatarUrl, createdDate, createdBy, lastUpdatedDate, lastUpdatedBy)" +
-            "VALUES (#{email}, #{passwordHash}, #{googleId}, #{displayName}, #{avatarUrl}, NOW(), #{createdBy} , NOW() , #{lastUpdatedBy} )")
+    @Insert("INSERT INTO user (email, passwordHash, googleId, displayName, avatarUrl, createdDate, createdBy, lastUpdatedDate, lastUpdatedBy, userRole)" +
+            "VALUES (#{email}, #{passwordHash}, #{googleId}, #{displayName}, #{avatarUrl}, NOW(), #{createdBy} , NOW() , #{lastUpdatedBy}, #{userRole} )")
     @Options(useGeneratedKeys = true, keyProperty = "userId")
     void insertUser(User user);
 

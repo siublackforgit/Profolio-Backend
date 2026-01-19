@@ -1,4 +1,7 @@
 package com.rickyyeung.profolio.enums;
+
+import java.util.Arrays;
+
 public enum UserRole {
     ROOT(1, "ROOT"),
     ADMIN(2, "ADMIN"),
@@ -12,15 +15,29 @@ public enum UserRole {
         this.roleName = roleName;
     }
 
-    public String getRoleName() { return roleName; }
+    // Getter
     public int getCode() { return code; }
+    public String getRoleName() { return roleName; }
 
     public static UserRole fromCode(int code) {
-        for (UserRole role : UserRole.values()) {
-            if (role.code == code) {
-                return role;
-            }
-        }
-        throw new IllegalArgumentException("無效的角色代碼: " + code);
+        return Arrays.stream(UserRole.values())
+                .filter(role -> role.code == code)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("cannot find the Role: " + code));
+    }
+
+    public static UserRole fromRoleName(String roleName) {
+        return Arrays.stream(UserRole.values())
+                .filter(role -> role.roleName.equalsIgnoreCase(roleName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("cannot find the Role: " + roleName));
+    }
+
+    public static String getNameByCode(int code) {
+        return fromCode(code).getRoleName();
+    }
+
+    public static int getCodeByName(String roleName) {
+        return fromRoleName(roleName).getCode();
     }
 }

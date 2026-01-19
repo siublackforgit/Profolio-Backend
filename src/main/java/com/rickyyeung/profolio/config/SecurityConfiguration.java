@@ -1,6 +1,7 @@
 package com.rickyyeung.profolio.config;
 
 import com.rickyyeung.profolio.filter.JwtAuthenticationFilter;
+import com.rickyyeung.profolio.mapper.LoginLogMapper;
 import com.rickyyeung.profolio.mapper.UserMapper;
 import com.rickyyeung.profolio.model.User;
 import com.rickyyeung.profolio.util.JwtUtils;
@@ -45,17 +46,20 @@ public class SecurityConfiguration {
     private final JwtUtils jwtUtils;
     private final RandomTokenUtils randomTokenUtils;
     private final UserMapper userMapper;
+    private final LoginLogMapper loginLogMapper;
     private final StringRedisTemplate redisTemplate;
 
     public SecurityConfiguration(JwtUtils jwtUtils,
                                  UserMapper userMapper,
                                  RandomTokenUtils randomTokenUtils,
-                                 StringRedisTemplate redisTemplate
+                                 StringRedisTemplate redisTemplate,
+                                 LoginLogMapper loginLogMapper
                                  ) {
         this.jwtUtils = jwtUtils;
         this.userMapper = userMapper;
         this.randomTokenUtils = randomTokenUtils;
         this.redisTemplate = redisTemplate;
+        this.loginLogMapper = loginLogMapper;
     }
 
     @Bean
@@ -155,6 +159,10 @@ public class SecurityConfiguration {
             String tempToken = randomTokenUtils.generateSecureToken();
 
             redisTemplate.opsForValue().set(tempToken,user.getEmail(), Duration.ofMinutes(1));
+
+            //LoginLog insert
+            String ip = request.getRemoteAddr();
+            loginLogMapper.insertLoginLog(user.getUserId(), ip);
 
             response.sendRedirect(frontendDomain + "/auth?tempToken=" + tempToken);
         };

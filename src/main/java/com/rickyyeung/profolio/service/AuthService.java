@@ -5,25 +5,30 @@ import com.rickyyeung.profolio.Dto.TokenDtos;
 import com.rickyyeung.profolio.Dto.UserDto;
 import com.rickyyeung.profolio.config.AppConfiguration;
 import com.rickyyeung.profolio.enums.UserRole;
+import com.rickyyeung.profolio.mapper.LoginLogMapper;
 import com.rickyyeung.profolio.mapper.UserMapper;
 import com.rickyyeung.profolio.model.User;
 import com.rickyyeung.profolio.util.JwtUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.connection.RedisServer;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.util.*;
 
 /** @noinspection ALL*/
 @Service
+@Slf4j
 public class AuthService {
 
     private final UserMapper userMapper;
@@ -32,9 +37,10 @@ public class AuthService {
     private final AppConfiguration appConfiguration;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
+    private final LoginLogMapper loginLogMapper;
 
     public AuthService(UserMapper userMapper, BCryptPasswordEncoder bCryptPasswordEncoder, AppConfiguration appConfiguration
-    ,EmailService emailService, StringRedisTemplate redisTemplate, JwtUtils jwtUtils
+    ,EmailService emailService, StringRedisTemplate redisTemplate, JwtUtils jwtUtils, LoginLogMapper loginLogMapper
     ) {
         this.userMapper = userMapper;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
@@ -42,6 +48,7 @@ public class AuthService {
         this.emailService = emailService;
         this.redisTemplate = redisTemplate;
         this.jwtUtils = jwtUtils;
+        this.loginLogMapper = loginLogMapper;
     }
 
     @Transactional
@@ -90,6 +97,7 @@ public class AuthService {
             return user;
         } catch (Exception e) {
             redisTemplate.delete("EMAIL_VERIFY" + token);
+            log.error("error - Email: {}, Failure reason: {}", email, e.getMessage(), e);
             throw new RuntimeException("Email sending failed, rolling back.");
         }
 
@@ -117,7 +125,7 @@ public class AuthService {
             try {
                 userMapper.updateEmailVerifiedStatus(userId, true, 1);
             } catch (Exception e) {
-                System.out.println("Update Failed");
+                log.error("verifyEmail Failed - Email: {}, Failure reason: {}", email, e.getMessage(), e);
             }
         }else{
             throw new IllegalArgumentException("User is not found");
@@ -147,7 +155,7 @@ public class AuthService {
         return user;
     }
 
-    public LoginRespondDto LoginEmail (Map<String, Object> payload) {
+    public LoginRespondDto LoginEmail (Map<String, Object> payload, HttpServletRequest request) {
 
         String email = (String) payload.get("email");
 
@@ -181,6 +189,7 @@ public class AuthService {
                         throw new IllegalStateException("The Account is unverified, a email has been sent to your email, please verify your account");
                     } catch (Exception e) {
                         redisTemplate.delete("EMAIL_VERIFY" + token);
+                        log.error("LoginEmail Failed - Email: {}, Failure reason: {}", email, e.getMessage(), e);
                         throw new RuntimeException("A verification Email sent failed, rolling back.");
                     }
                 }
@@ -194,8 +203,13 @@ public class AuthService {
                 //prefix:userId
                 redisTemplate.opsForValue().set("refreshToken:"+user.getUserId(),refreshToken,Duration.ofDays(2));
 
+                //LoginLog insert
+                String ip = request.getRemoteAddr();
+                loginLogMapper.insertLoginLog(userDto.getUserId(), ip);
+
                 return new LoginRespondDto(userDto,accesstoken,refreshToken);
             }else{
+                log.error("Password is not matched");
                 throw new IllegalArgumentException("Password is not matched");
             }
 
@@ -207,42 +221,49 @@ public class AuthService {
     public LoginRespondDto validateAndRefreshToken(HttpServletRequest request){
         Cookie[] cookies  = request.getCookies();
         if(cookies == null){
-            throw new RuntimeException("No cookies found");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No cookies found");
         }
 
         String refreshTokenFromCookie = Arrays.stream(cookies)
                 .filter(c -> "refreshToken".equals(c.getName()))
                 .map(Cookie::getValue)
                 .findFirst()
-                .orElseThrow( () -> new RuntimeException("Refresh Token is missing") );
+                .orElseThrow( () ->  new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token is missing")
+       );
 
         String accessTokenFromCookie = Arrays.stream(cookies)
                 .filter(c -> "accessToken".equals(c.getName()))
                 .map(Cookie::getValue)
                 .findFirst()
-                .orElseThrow( () -> new RuntimeException("accessToken Token is missing") );
+                .orElseThrow( () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "accessToken Token is missing")
+                );
 
         Long userId = jwtUtils.getUserIdFromToken(accessTokenFromCookie);
 
         if(userId == null){
-            throw new RuntimeException("userId is null in accessToken");
+            log.error("user is null");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "user is null");
         }
 
         String redisKey = "refreshToken:"+userId;
         String storedRefreshToken = (String) redisTemplate.opsForValue().get(redisKey);
 
         if(!redisTemplate.hasKey(redisKey)){
-            throw new RuntimeException("Refresh Token has expired or session invalid");
+            log.error("Refresh Token has expired or session invalid");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token has expired or session invalid");
         }
 
         if(storedRefreshToken == null || !storedRefreshToken.equals(refreshTokenFromCookie)){
-            throw new RuntimeException("Cannot Find RefreshToken");
+            log.error("Cannot Find RefreshToken");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot Find RefreshToken");
+
         }
 
         Optional<User> user = userMapper.findByUserId(userId);
 
         if(user.isEmpty()){
-            throw new RuntimeException("user is null");
+            log.error("user is null");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "user is null");
         }
 
 
@@ -252,6 +273,10 @@ public class AuthService {
 
         String accessToken = jwtUtils.generateToken(user.get());
         String refreshToken = UUID.randomUUID().toString();
+
+        //Insert Login Record
+        String ip = request.getRemoteAddr();
+        loginLogMapper.insertLoginLog(userDto.getUserId(), ip);
 
         return new LoginRespondDto(userDto,accessToken,refreshToken);
     }

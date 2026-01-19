@@ -65,9 +65,9 @@ public class AuthController {
     }
 
     @PostMapping("/loginEmail")
-    public ResponseEntity<?> loginEmail(@RequestBody Map<String, Object> payload){
+    public ResponseEntity<?> loginEmail(@RequestBody Map<String, Object> payload, HttpServletRequest request){
         try{
-            LoginRespondDto loginRespondDto = authService.LoginEmail(payload);
+            LoginRespondDto loginRespondDto = authService.LoginEmail(payload,request);
 
             ResponseCookie accessTokencookie = ResponseCookie.from("accessToken", loginRespondDto.getAccessToken())
                     .httpOnly(true)
@@ -84,6 +84,7 @@ public class AuthController {
                     .maxAge(Duration.ofDays(7))
                     .sameSite("Strict")
                     .build();
+
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, accessTokencookie.toString())
