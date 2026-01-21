@@ -119,7 +119,14 @@ public class SecurityConfiguration {
             String avaterUrl = oidcUser.getPicture();
 
             Optional<User> exiting = userMapper.findByEmail(email);
-            User user = userMapper.findByEmail(email).orElseGet(() -> {
+            User user = userMapper.findByEmail(email).map(existingUser -> {
+                existingUser.setAvatarUrl(avaterUrl);
+                existingUser.setDisplayName(googleName);
+                existingUser.setGoogleId(googleId);
+                existingUser.setLastUpdatedBy(1);
+                userMapper.updateUser(existingUser);
+                return existingUser;
+            }).orElseGet(() -> {
                 User newUser = new User();
                 newUser.setEmail(email);
                 newUser.setGoogleId(googleId);
