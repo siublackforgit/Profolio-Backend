@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface LoginLogMapper {
-    @Insert("INSERT INTO loginLog (loginLogUserId, loginLogIpAddress, loginLogLoginTime) " +
+    @Insert("INSERT INTO loginlog (loginLogUserId, loginLogIpAddress, loginLogLoginTime) " +
             "VALUES (#{userId}, #{ipAddress}, NOW())")
     int insertLoginLog(@Param("userId") Long userId, @Param("ipAddress") String ipAddress);
 }
