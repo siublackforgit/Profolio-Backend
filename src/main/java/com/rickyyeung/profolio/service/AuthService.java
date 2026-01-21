@@ -52,7 +52,7 @@ public class AuthService {
     }
 
     @Transactional
-    public User registerEmail (String email, String password, String displayName) {
+    public Boolean registerEmail (String email, String password, String displayName) {
         if(email == null || email.isBlank()){
             throw new IllegalArgumentException("Email is Null or Empty");
         }
@@ -94,7 +94,7 @@ public class AuthService {
                     "[Verification Email] Please verify your email",
                     "Hi " + displayName + ",\n\n This is a verification Email From Ricky Profolio, \n\n Please verify your email by clicking this link:\n" + verficationUrl
             );
-            return user;
+            return true;
         } catch (Exception e) {
             redisTemplate.delete("EMAIL_VERIFY" + token);
             log.error("error - Email: {}, Failure reason: {}", email, e.getMessage(), e);
