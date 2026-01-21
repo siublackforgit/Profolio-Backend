@@ -38,7 +38,7 @@ public class AuthController {
         try {
             authService.registerEmail(email, password, displayName);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body("User registered successfully");
+                    .body("User registered successfully, Please check your email to verify");
         } catch (IllegalArgumentException e) {
             logger.debug("Invalid input: "+ e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
