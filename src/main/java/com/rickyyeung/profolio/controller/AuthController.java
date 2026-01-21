@@ -139,9 +139,13 @@ public class AuthController {
                     .sameSite("Strict")
                     .build();
 
+            ResponseCookie jsessionService = ResponseCookie.from("JSESSIONID", "")
+                    .httpOnly(true).secure(true).path("/").maxAge(0).build();
+
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE,accessTokenCookie.toString())
                     .header(HttpHeaders.SET_COOKIE,refreshTokenCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, jsessionService.toString())
                     .body("Succeed LogOut");
         }catch (Exception e){
             logger.debug("bad request, error message:"+ e.getMessage());
