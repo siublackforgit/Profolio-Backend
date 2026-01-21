@@ -78,7 +78,7 @@ public class AuthController {
                     .secure(true)
                     .path("/")
                     .maxAge(Duration.ofMinutes(15))
-                    .sameSite("Strict")
+                    .sameSite("None")
                     .build();
 
             ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", loginRespondDto.getRefreshToken())
@@ -86,7 +86,7 @@ public class AuthController {
                     .secure(true)
                     .path("/")
                     .maxAge(Duration.ofDays(7))
-                    .sameSite("Strict")
+                    .sameSite("None")
                     .build();
 
 
